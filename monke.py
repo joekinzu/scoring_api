@@ -1,0 +1,114 @@
+from abc import ABC,abstractmethod
+import re
+from scoring import get_score, get_interests
+
+SALT = "Otus"
+ADMIN_LOGIN = "admin"
+ADMIN_SALT = "42"
+OK = 200
+BAD_REQUEST = 400
+FORBIDDEN = 403
+NOT_FOUND = 404
+INVALID_REQUEST = 422
+INTERNAL_ERROR = 500
+ERRORS = {
+    BAD_REQUEST: "Bad Request",
+    FORBIDDEN: "Forbidden",
+    NOT_FOUND: "Not Found",
+    INVALID_REQUEST: "Invalid Request",
+    INTERNAL_ERROR: "Internal Server Error",
+}
+UNKNOWN = 0
+MALE = 1
+FEMALE = 2
+GENDERS = {
+    UNKNOWN: "unknown",
+    MALE: "male",
+    FEMALE: "female",
+}
+
+
+class Field():
+    def __init__(self, required=False, nullable=False, **kwargs):
+        self.required = required
+        self.nullable = nullable
+        
+    @abstractmethod
+    def validate(self, value):
+        pass
+
+class CharField(Field):
+    def validate(self, value):
+        if not isinstance(value, str):
+            raise ValueError('String expected')
+
+class ArgumentsField(Field):
+    def validate(self, value):
+        if not isinstance(value, dict):
+            raise ValueError('Dictionary expected')
+
+class GenderField(Field):
+    def validate(self, value):
+        if not isinstance(value, int):
+            raise ValueError('Integer expected')
+
+class EmailField(Field):
+    def validate(self, value):
+        if not (re.search('^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$',value)):
+            raise ValueError('Wrong email')
+
+class PhoneField(Field):
+    def validate(self, value):
+        if len(value) != 11:
+            raise ValueError('Phone value length should be 11 characters')
+        if not value.startswith('7'):
+            raise ValueError('Phone value should starts with 7')
+
+class Request():
+    def __init__(self, **kwargs):
+        self.field_classes = {}
+        for field in dir(self):
+            value = getattr(self, field, None)
+            if isinstance(value, Field):
+                self.field_classes[field] = value
+                setattr(self, field, None)
+
+        for field, name in kwargs.items():
+            self.field_classes[field].validate(name)
+            setattr(self, field, name)
+
+class MethodRequest(Request):
+    account = CharField(required=False, nullable=True)
+    login = CharField(required=True, nullable=True)
+    token = CharField(required=True, nullable=True)
+    arguments = ArgumentsField(required=True, nullable=True)
+    method = CharField(required=True, nullable=False)
+
+    @property
+    def is_admin(self):
+        return self.login == ADMIN_LOGIN
+
+class OnlineScoreRequest(Request):
+    first_name = CharField(required=False, nullable=True)
+    last_name = CharField(required=False, nullable=True)
+    email = EmailField(required=False, nullable=True)
+    phone = PhoneField(required=False, nullable=True)
+    birthday = CharField(required=False, nullable=True)
+    gender = GenderField(required=False, nullable=True)
+
+class ClientsInterestsRequest(object):
+    client_ids = ClientIDsField(required=True)
+    date = DateField(required=False, nullable=True)
+
+
+# =========================================
+
+data = MethodRequest(**{"account": "horns&hoofs", "login": "h&f", "method": "online_score", "token": "55cc9ce545bcd144300fe9efc28e65d415b923ebb6be1e19d2750a2c03e80dd209a27954dca045e5bb12418e7d89b6d718a9e35af34e14e1d5bcd5a08f21fc95", "arguments": {"phone": "79175002040", "email": "stupnikov@otus.ru", "first_name": "Стансилав", "last_name": "Ступников", "birthday": "01.01.1990", "gender": 1}})
+# data = OnlineScoreRequest(**{"phone": "79175002040", "email": "stupniko@otus.ru", "first_name": "Стансилав", "last_name": "Ступников", "birthday": "01.01.1990", "gender": 1})
+# data.validate()
+if data.method == 'online_score':
+    print(1)
+if data.method != 'online_score':
+    print(2)
+
+print('-------------------------------------------------\n', vars(data))
