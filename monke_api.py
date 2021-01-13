@@ -95,7 +95,7 @@ class BirthDayField(DateField):
         value = int(value.split('.')[-1])
         d = datetime.datetime.now()
         if (d.year - value) > 70:
-            raise ValueError('date after 70 years ago expected')
+            raise ValueError('Date after 70 years ago expected')
         
 
 # Request class
@@ -145,24 +145,29 @@ def check_auth(request):
 
     if digest == request.token:
         return True
-    return True
+    return False
 
 
 def method_handler(request, ctx, store):
     response, code = ERRORS.get(FORBIDDEN), FORBIDDEN
-    data = MethodRequest(**request['body'])
-    if check_auth(data):
-    # request method checking
-        if data.method == 'online_score':
-            data1 = OnlineScoreRequest(**data.arguments)
-            score = get_score(store, data1.phone, data1.email, data1.birthday, data1.gender, data1.first_name, data1.last_name) if not data.is_admin else 42
-            response, code = {"score": score}, 200
-        elif data.method == 'clients_interests':
-            data1 = ClientsInterestsRequest(**data.arguments)
-            interests = dict((client_id, get_interests(store, client_id)) for client_id in data.arguments['client_ids'])
-            response, code = interests, 200
-        else:
-         response, code = ERRORS.get(INVALID_REQUEST), INVALID_REQUEST
+    try:
+        data = MethodRequest(**request['body'])
+        if check_auth(data):
+        # request method checking
+            if data.method == 'online_score':
+                data1 = OnlineScoreRequest(**data.arguments)
+                score = get_score(store, data1.phone, data1.email, data1.birthday, data1.gender, data1.first_name, data1.last_name) if not data.is_admin else 42
+                ctx['has'] = [f for f, v in data1.field_classes.items()]
+                response, code = {"score": score}, OK
+            elif data.method == 'clients_interests':
+                data1 = ClientsInterestsRequest(**data.arguments)
+                interests = dict((client_id, get_interests(store, client_id)) for client_id in data.arguments['client_ids'])
+                ctx['nclients'] = len(data1.client_ids)
+                response, code = interests, OK
+            else:
+             response, code = ERRORS.get(INVALID_REQUEST), INVALID_REQUEST
+    except ValueError as err:
+        return str(err), INVALID_REQUEST
     return response, code
 
 
