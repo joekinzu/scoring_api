@@ -47,51 +47,61 @@ class Field():
         
     @abstractmethod
     def validate(self, value):
-        pass
+        if self.required and not value:
+            raise ValueError('Value required')
+        if not self.nullable and not bool(value):
+            raise ValueError('Value is empty')
 
 # Field sublasses with validation 
 class CharField(Field):
     def validate(self, value):
+        super().validate(value)
         if not isinstance(value, str):
             raise ValueError('String expected')
 
 class ArgumentsField(Field):
     def validate(self, value):
+        super().validate(value)
         if not isinstance(value, dict):
             raise ValueError('Dictionary expected')
 
 class GenderField(Field):
     def validate(self, value):
+        super().validate(value)
         if not isinstance(value, int):
             raise ValueError('Integer expected')
+        if value not in [0,1,2]:
+            raise ValueError('Wrong gender value')
 
-class EmailField(Field):
+class EmailField(CharField):
     def validate(self, value):
+        super().validate(value)
         if not (re.search('^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$',value)):
             raise ValueError('Wrong email')
 
 class PhoneField(Field):
     def validate(self, value):
+        super().validate(value)
         if len(value) != 11:
-            raise ValueError('Phone value length should be 11 characters')
+            raise ValueError('Phone should contain 11 digits')
         if not value.startswith('7'):
-            raise ValueError('Phone value should starts with 7')
+            raise ValueError('Phone should starts with 7')
 
 class ClientIDsField(Field):
     def validate(self, value):
+        super().validate(value)
         if not isinstance(value, list):
             raise ValueError('List expected')
 
 class DateField(Field):
     def validate(self, value):
-        if not (re.search(r'\d{1,2}.\d{1,2}.\d{4}',value)):
+        super().validate(value)
+        if not (re.search(r'\d{2}.\d{2}.\d{4}',value)):
             raise ValueError('Wrong date')
 
 class BirthDayField(DateField):
     def validate(self, value):
-        if not (re.search(r'\d{1,2}.\d{1,2}.\d{4}',value)):
-            raise ValueError('Wrong date')
-
+        super().validate(value)
         value = int(value.split('.')[-1])
         d = datetime.datetime.now()
         if (d.year - value) > 70:
